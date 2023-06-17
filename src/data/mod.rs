@@ -69,17 +69,15 @@ impl MicroDB {
         self.storage.shutdown()
     }
 
-    pub fn set<P: Path<T>, T: Obj>(&self, path: P, object: T) {
-        self.storage
-            .set(&path.to_db_path(), object.to_db_object())
-            .unwrap()
+    pub fn set<P: Path<T>, T: Obj>(&self, path: P, object: T) -> Result<(), io::Error> {
+        self.storage.set(&path.to_db_path(), object.to_db_object())
     }
 
-    pub fn get<P: Path<T>, T: Obj>(&self, path: P) -> Option<T> {
-        self.storage
-            .get(&path.to_db_path())
-            .unwrap()
-            .map(T::map)
-            .flatten()
+    pub fn get<P: Path<T>, T: Obj>(&self, path: P) -> Result<Option<T>, io::Error> {
+        Ok(self.storage.get(&path.to_db_path())?.map(T::map).flatten())
+    }
+
+    pub fn remove<P: Path<T>, T: Obj>(&self, path: P) -> Result<(), io::Error> {
+        self.storage.set(&path.to_db_path(), Vec::new())
     }
 }

@@ -1,8 +1,9 @@
 use std::{
     collections::HashMap,
     fs::{self, File},
-    io::{self, Read, Seek, SeekFrom, Write},
-    mem,
+    hint::black_box,
+    io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
+    mem, process,
     sync::{Arc, Mutex},
     thread,
     time::{Duration, SystemTime},
@@ -244,7 +245,7 @@ impl AllocationTable {
 }
 
 impl InnerFAlloc {
-    fn fix_cache(&mut self) -> Result<u128, io::Error> {
+    fn flush_cache(&mut self) -> Result<u128, io::Error> {
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
         if time - self.last_cache_check > 100 {
             self.last_cache_check = time;
@@ -287,11 +288,53 @@ impl FAlloc {
         let inner_clone = inner.clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_secs(1));
+            let mut recovery = false;
             loop {
-                let mut inner = inner_clone.lock().unwrap();
-                inner.fix_cache().unwrap();
+                if inner_clone.is_poisoned() {
+                    println!(
+                        "SEVERE: The database mutex was poisoned. Data may be corrupt. {}", 
+                        "Clearing poison and attempting to write to disk one last time before shutting down."
+                    );
+                    println!(
+                        "First, waiting 60 seconds for rest of program to crash if possible..."
+                    );
+                    thread::sleep(Duration::from_secs(60));
+                    println!("Circumventing poison and attempting recovery.");
+                    recovery = true;
+                }
+                let mut inner = inner_clone.lock().unwrap_or_else(|x| x.into_inner());
+                if recovery {
+                    inner.shutdown = true;
+                    if let Err(e) = inner.alloc.save() {
+                        println!("The database was unable to write *critical* data to disk. DO NOT END THE PROGRAM. Error: {e:?}. Recovery attempts happen every 10 seconds.");
+                        thread::sleep(Duration::from_secs(10));
+                        continue;
+                    }
+                }
+                if let Err(e) = inner.flush_cache().and(inner.data.sync_all()) {
+                    inner.shutdown = true;
+                    recovery = true;
+                    println!("The database was unable to write to disk. Depending on where this error happened, your data might be mostly fine. Error: {e:?}. Recovery will be attempted every 30 seconds.");
+                    thread::sleep(Duration::from_secs(30));
+                    continue;
+                }
                 if inner.shutdown {
                     inner.shutdown = false;
+                    if recovery {
+                        println!("Recovery seems to have been successful. HALTING THE PROGRAM IN ORDER TO PREVENT FURTHER DAMAGE.");
+                        println!("Poisoning mutex just in case any threads still try to use it.");
+                        let inner_clone = inner_clone.clone();
+                        thread::spawn(move || {
+                            let thing = inner_clone.lock().unwrap();
+                            if 1 == 1 {
+                                panic!("Poisoning mutex intentionally.");
+                            }
+                            mem::drop(black_box(thing));
+                        });
+                        println!("Sleeping for 2 hours, then exiting.");
+                        thread::sleep(Duration::from_secs(3600 * 2));
+                        process::exit(255);
+                    }
                     break;
                 }
                 let d = inner.cache_period;
@@ -340,7 +383,10 @@ impl FAlloc {
 
     pub fn cache_lookup(&self, path: Option<&str>) -> Result<Option<Vec<u8>>, io::Error> {
         let mut this = self.inner.lock().unwrap();
-        let time = this.fix_cache()?;
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
+        let time = this.flush_cache()?;
         if let Some(path) = path {
             Ok(this
                 .cache
@@ -359,6 +405,9 @@ impl FAlloc {
         }
 
         let mut this = self.inner.lock().unwrap();
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
         let (cache, alloc, data) = deborrow!(this: cache, alloc, data);
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
         alloc
@@ -379,6 +428,9 @@ impl FAlloc {
 
     pub fn set(&self, path: &str, data: Vec<u8>) -> Result<(), io::Error> {
         let mut this = self.inner.lock().unwrap();
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
         let (cache, alloc) = deborrow!(this: cache, alloc);
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
         cache.insert(path.to_owned(), (time, true, data));
@@ -400,7 +452,7 @@ impl FAlloc {
         for item in this.cache.iter_mut() {
             item.1 .0 = 0;
         }
-        this.fix_cache()?;
+        this.flush_cache()?;
         Ok(())
     }
 
@@ -418,13 +470,6 @@ impl FAlloc {
             thread::sleep(Duration::from_millis(5));
         }
         Ok(())
-    }
-
-    pub fn is_poisoned(&self) -> bool {
-        self.inner.is_poisoned()
-    }
-    pub fn clear_poison(&self) -> bool {
-        self.inner.clear_poison()
     }
 }
 
