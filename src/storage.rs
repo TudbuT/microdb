@@ -146,31 +146,21 @@ impl AllocationTable {
 
     fn dealloc(&mut self, alloc: (usize, usize)) {
         let amount = ((alloc.1 - 1) / self.block_size + 1) * self.block_size;
-        self.free
-            // round size up to block size
-            .push((alloc.0, amount));
-        // unify free space (TODO; algorithm to be replaced)
-        loop {
-            self.free.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-            let mut free: Vec<(usize, usize)> = Vec::new();
-            let mut unified = false;
-            for item in self.free.iter() {
-                let mut did_anything = false;
-                for other in free.iter_mut() {
-                    if item.0 == other.0 + other.1 {
-                        other.1 += item.1;
-                        did_anything = true;
-                        unified = true;
+        let index = self.free.binary_search_by(|x| (x.0 + x.1).cmp(&alloc.0));
+        match index {
+            Ok(mut index) => {
+                self.free[index].1 += alloc.1;
+                // unify previous ones
+                let mut i = 0;
+                while i < (index + 1).min(self.free.len() - 1) {
+                    if self.free[i].0 + self.free[i].1 == self.free[i + 1].0 {
+                        self.free[i].1 += self.free.remove(i + 1).1;
+                        index -= 1;
                     }
-                }
-                if !did_anything {
-                    free.push(*item);
+                    i += 1;
                 }
             }
-            self.free = free;
-            if !unified {
-                break;
-            }
+            Err(index) => self.free.insert(index, (alloc.0, amount)),
         }
     }
 
