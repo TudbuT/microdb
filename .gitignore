@@ -2,3 +2,4 @@
 /Cargo.lock
 /test.alloc
 /test.dat
+*.mdb

@@ -121,12 +121,9 @@ impl AllocationTable {
     }
 
     fn alloc(&mut self, amount: usize, file: &mut File) -> Result<(usize, usize), io::Error> {
-        println!("Allocating {amount} bytes:");
         let amount = ((amount - 1) / self.block_size + 1) * self.block_size;
-        println!("Real alloc = {amount}.");
         // try to reclaim old space
         if let Some((loc, &x)) = self.free.iter().enumerate().find(|x| x.1 .1 >= amount) {
-            println!("Reclaiming.");
             self.free.remove(loc);
             if (x.1 - amount) / self.block_size > 0 {
                 self.free.push((
@@ -136,32 +133,45 @@ impl AllocationTable {
                     x.1 - amount / self.block_size * self.block_size,
                 ))
             }
-            println!("Free remaining: {:?}", self.free);
-            println!("Alloc success: {} - {} claimed.", x.0, amount);
             return Ok((x.0, amount));
         }
-        println!("Creating new space.");
         // otherwise find new place
         let start = self.blocks_reserved * self.block_size;
         let amount_blocks = amount / self.block_size;
-        println!("Allocating {amount_blocks} blocks.");
         file.seek(SeekFrom::Start(start as u64))?;
         file.write_all(&vec![0_u8; amount_blocks * self.block_size])?;
         self.blocks_reserved += amount_blocks;
-        println!(
-            "Alloc success: {start} - {} claimed.",
-            amount_blocks * self.block_size
-        );
         Ok((start, amount_blocks * self.block_size))
     }
+
     fn dealloc(&mut self, alloc: (usize, usize)) {
-        println!("Deallocating {} bytes at {}", alloc.1, alloc.0);
         let amount = ((alloc.1 - 1) / self.block_size + 1) * self.block_size;
-        println!("Real amount of bytes deallocated = {amount}");
         self.free
             // round size up to block size
             .push((alloc.0, amount));
-        println!("Dealloc successful.")
+        // unify free space (TODO; algorithm to be replaced)
+        loop {
+            self.free.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            let mut free: Vec<(usize, usize)> = Vec::new();
+            let mut unified = false;
+            for item in self.free.iter() {
+                let mut did_anything = false;
+                for other in free.iter_mut() {
+                    if item.0 == other.0 + other.1 {
+                        other.1 += item.1;
+                        did_anything = true;
+                        unified = true;
+                    }
+                }
+                if !did_anything {
+                    free.push(*item);
+                }
+            }
+            self.free = free;
+            if !unified {
+                break;
+            }
+        }
     }
 
     fn set_allocation_length(
@@ -201,17 +211,21 @@ impl AllocationTable {
         } else {
             while needed < allocation.full_size {
                 let change = allocation.full_size - needed;
-                if allocation.locations.last().unwrap().1 >= change {
+                if allocation.locations.last().unwrap().1 <= change {
                     // the entire thing can be removed
-                    self.dealloc(allocation.locations.pop().unwrap());
+                    let loc = allocation.locations.pop().unwrap();
+                    allocation.full_size -= loc.1;
+                    self.dealloc(loc);
                 } else {
                     // start .. end - change is the range where data is still needed,
                     // so it follows end - change .. end is the range where it isnt.
-                    let last = allocation.locations.last().unwrap();
+                    let last = allocation.locations.last_mut().unwrap();
                     let end = last.0 + last.1;
                     let begin_dealloc = end - change;
                     let begin_dealloc =
                         ((begin_dealloc - 1) / self.block_size + 1) * self.block_size;
+                    last.1 = begin_dealloc;
+                    allocation.full_size = needed;
                     self.dealloc((begin_dealloc, end - begin_dealloc));
                 }
             }
@@ -220,7 +234,6 @@ impl AllocationTable {
     }
 
     fn save(&mut self) -> Result<(), io::Error> {
-        println!("Saving {self:?}");
         let mut file = File::create(self.filename.to_owned() + ".tmp")?;
         serialize_u64!(file, self.block_size)?;
         serialize_u64!(file, self.blocks_reserved)?;
@@ -245,9 +258,9 @@ impl AllocationTable {
 }
 
 impl InnerFAlloc {
-    fn flush_cache(&mut self) -> Result<u128, io::Error> {
+    fn flush_cache(&mut self, force: bool) -> Result<u128, io::Error> {
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
-        if time - self.last_cache_check > 100 {
+        if time - self.last_cache_check >= 100 || force || self.cache_period == 0 {
             self.last_cache_check = time;
             for item in self.cache.iter_mut() {
                 if item.1 .1 && time - item.1 .0 >= self.cache_period {
@@ -266,6 +279,7 @@ impl InnerFAlloc {
                     }
                 }
             }
+            self.cache.retain(|_, x| time - x.0 < self.cache_period);
         }
         Ok(time)
     }
@@ -311,7 +325,7 @@ impl FAlloc {
                         continue;
                     }
                 }
-                if let Err(e) = inner.flush_cache().and(inner.data.sync_all()) {
+                if let Err(e) = inner.flush_cache(true).and(inner.data.sync_all()) {
                     inner.shutdown = true;
                     recovery = true;
                     println!("The database was unable to write to disk. Depending on where this error happened, your data might be mostly fine. Error: {e:?}. Recovery will be attempted every 30 seconds.");
@@ -339,7 +353,7 @@ impl FAlloc {
                 }
                 let d = inner.cache_period;
                 mem::drop(inner);
-                thread::sleep(Duration::from_millis((d * 10) as u64));
+                thread::sleep(Duration::from_millis((d * 10 + 5) as u64));
             }
         });
         Ok(Self { inner })
@@ -379,6 +393,10 @@ impl FAlloc {
             },
             cache_period,
         )
+        .and_then(|x| {
+            x.save()?;
+            Ok(x)
+        })
     }
 
     pub fn cache_lookup(&self, path: Option<&str>) -> Result<Option<Vec<u8>>, io::Error> {
@@ -386,21 +404,27 @@ impl FAlloc {
         if this.shutdown {
             return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
         }
-        let time = this.flush_cache()?;
+        let time = this.flush_cache(false)?;
+        if this.cache_period == 0 {
+            return Ok(None);
+        }
         if let Some(path) = path {
             Ok(this
                 .cache
                 .get_mut(path)
-                .map(|x| (x.0 = time, x.2.to_owned()).1)
-                // empty data can only exist in cache, so we only need this condition in the cache.
-                .and_then(|x| if x.is_empty() { None } else { Some(x) }))
+                .map(|x| (x.0 = time, x.2.to_owned()).1))
         } else {
             Ok(None)
         }
     }
 
+    /// Gets a value. This will try to get it from cache first, and fall back
+    /// to the file. If so, the item will be cached for the future.
     pub fn get(&self, path: &str) -> Result<Option<Vec<u8>>, io::Error> {
         if let Some(x) = self.cache_lookup(Some(path))? {
+            if x.is_empty() {
+                return Ok(None);
+            }
             return Ok(Some(x));
         }
 
@@ -426,6 +450,8 @@ impl FAlloc {
             .unwrap_or(Ok(None))
     }
 
+    /// Sets a value in the cache. It will be flushed to storage after
+    /// some time of not being used. EMPTY INPUT DATA WILL DELETE THE ITEM.
     pub fn set(&self, path: &str, data: Vec<u8>) -> Result<(), io::Error> {
         let mut this = self.inner.lock().unwrap();
         if this.shutdown {
@@ -446,16 +472,18 @@ impl FAlloc {
         Ok(())
     }
 
+    /// Expires the cache and flushes it.
     pub fn sync(&self) -> Result<(), io::Error> {
         let mut this = self.inner.lock().unwrap();
         this.last_cache_check = 0;
         for item in this.cache.iter_mut() {
             item.1 .0 = 0;
         }
-        this.flush_cache()?;
+        this.flush_cache(true)?;
         Ok(())
     }
 
+    /// Syncs, then saves allocations.
     pub fn save(&self) -> Result<(), io::Error> {
         self.sync()?;
         let mut this = self.inner.lock().unwrap();
@@ -463,6 +491,20 @@ impl FAlloc {
         this.data.sync_all()
     }
 
+    /// Gracefully shuts down the allocator, saving in the process.
+    /// Please use [`shutdown`] instead if possible. This variant
+    /// will force a shutdown across all threads without the guarantee that
+    /// this is the only thread with access to it.
+    pub fn shutdown_here(&self) -> Result<(), io::Error> {
+        self.save()?;
+        self.inner.lock().unwrap().shutdown = true;
+        while self.inner.lock().unwrap().shutdown {
+            thread::sleep(Duration::from_millis(5));
+        }
+        Ok(())
+    }
+
+    /// Gracefully shuts down the DB, saving in the process.
     pub fn shutdown(self) -> Result<(), io::Error> {
         self.save()?;
         self.inner.lock().unwrap().shutdown = true;
@@ -506,7 +548,7 @@ mod test {
     fn delete_val() {
         let db = FAlloc::new("test.dat", "test.alloc", 500).unwrap();
         db.set("test", vec![0; 0]).unwrap();
-        assert_eq!(db.get("test").unwrap().unwrap(), vec![0; 0]);
+        assert!(db.get("test").unwrap().is_none());
         db.shutdown().unwrap();
     }
     fn create_new_val() {
