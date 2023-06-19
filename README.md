@@ -5,15 +5,15 @@ next incredibly successful Discord clone (tho I suppose you could make that work
 
 ## Completed features
 
-[x] Disk storage
-[x] Getting, setting, allocation, deallocation
-[x] Caching
-[x] Automatic recovery on error
-[x] Serialization for basic types (numbers, strings, vecs, options, results)
-[x] Easy-to-implement serialization
-[ ] Derivable serialization
-[ ] (maybe) Multi-client support over TCP
-[ ] (maybe) Mirroring operations to backup server (needs TCP)
+- [x] Disk storage
+- [x] Getting, setting, allocation, deallocation
+- [x] Caching
+- [x] Automatic recovery on error
+- [x] Serialization for basic types (numbers, strings, vecs, options, results)
+- [x] Easy-to-implement serialization
+- [ ] Derivable serialization
+- [ ] (maybe) Multi-client support over TCP
+- [ ] (maybe) Mirroring operations to backup server (needs TCP)
 
 ## How to use it
 
