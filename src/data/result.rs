@@ -44,30 +44,30 @@ where
     E: ComObj,
 {
     fn to_db<P: Path>(self, path: P, db: &MicroDB) -> Result<(), std::io::Error> {
-        db.set_raw(path.sub_path("/type"), self.is_ok())?;
+        db.set_raw(path.sub_path("type"), self.is_ok())?;
         match self {
-            Ok(x) => db.set_com(path.sub_path("/data"), x),
-            Err(x) => db.set_com(path.sub_path("/data"), x),
+            Ok(x) => db.set_com(path.sub_path("data"), x),
+            Err(x) => db.set_com(path.sub_path("data"), x),
         }
     }
 
     fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), std::io::Error> {
-        db.remove_raw(path.sub_path("/type"))?;
-        db.remove_raw(path.sub_path("/data"))?;
+        db.remove_raw(path.sub_path("type"))?;
+        db.remove_raw(path.sub_path("data"))?;
         Ok(())
     }
 
     fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, std::io::Error> {
-        if let Some(x) = db.get_raw(path.sub_path("/type"))? {
+        if let Some(x) = db.get_raw(path.sub_path("type"))? {
             if x {
-                if let Some(data) = db.get_com(path.sub_path("/data"))? {
+                if let Some(data) = db.get_com(path.sub_path("data"))? {
                     // found
                     Ok(Some(Ok(data)))
                 } else {
                     // broken
                     Ok(None)
                 }
-            } else if let Some(data) = db.get_com(path.sub_path("/data"))? {
+            } else if let Some(data) = db.get_com(path.sub_path("data"))? {
                 // found
                 Ok(Some(Err(data)))
             } else {

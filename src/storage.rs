@@ -467,10 +467,7 @@ impl FAlloc {
         if this.shutdown {
             return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
         }
-        let (cache, alloc): (
-            &mut HashMap<String, (u128, bool, Vec<u8>)>,
-            &mut AllocationTable,
-        ) = deborrow!(this: cache, alloc);
+        let (cache, alloc) = deborrow!(this: cache, alloc);
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
         for key in alloc
             .map

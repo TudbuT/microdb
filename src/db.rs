@@ -81,7 +81,7 @@ impl MicroDB {
 
     /// Sets an item in the database at the path.
     /// Here, the item is saved in a single blob at the path.
-    pub fn set_raw<P: Path, T: RawObj>(&self, path: P, object: T) -> Result<(), io::Error> {
+    pub fn set_raw<T: RawObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {
         let path = path.to_db_path();
         self.storage.delete_substructure(&path)?; // raw objects mustn't have substructure
         self.storage.set(&path, object.to_db())
@@ -90,7 +90,7 @@ impl MicroDB {
     /// Sets an item in the database at the path.
     /// Here, the item is a composite item, so multiple blobs on sub-paths
     /// may be created.
-    pub fn set_com<P: Path, T: ComObj>(&self, path: P, object: T) -> Result<(), io::Error> {
+    pub fn set_com<T: ComObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {
         self.storage
             .delete_substructure(&path.clone().to_db_path())?; // clean substructure
         T::to_db(object, path, self)
@@ -106,17 +106,17 @@ impl MicroDB {
     /// the next time that substructure is cleaned by some other function. Use this only if you
     /// know that the types of the previous inhabitant and the new one are the same and that the
     /// types aren't dynamic (like Vec<T> is).
-    pub fn set_com_hard<P: Path, T: ComObj>(&self, path: P, object: T) -> Result<(), io::Error> {
+    pub fn set_com_hard<T: ComObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {
         T::to_db(object, path, self)
     }
 
     /// Gets an item from the database.
-    pub fn get_raw<P: Path, T: RawObj>(&self, path: P) -> Result<Option<T>, io::Error> {
+    pub fn get_raw<T: RawObj, P: Path>(&self, path: P) -> Result<Option<T>, io::Error> {
         Ok(self.storage.get(&path.to_db_path())?.and_then(T::from_db))
     }
 
     /// Gets a composite item from the database.
-    pub fn get_com<P: Path, T: ComObj>(&self, path: P) -> Result<Option<T>, io::Error> {
+    pub fn get_com<T: ComObj, P: Path>(&self, path: P) -> Result<Option<T>, io::Error> {
         T::from_db(path, self)
     }
 
@@ -133,7 +133,18 @@ impl MicroDB {
     }
 
     /// Removes a composite item from the database gracefully.
-    pub fn remove_com<P: Path, T: ComObj>(&self, path: P) -> Result<(), io::Error> {
+    pub fn remove_com<T: ComObj, P: Path>(&self, path: P) -> Result<(), io::Error> {
         T::remove(path, self)
     }
+}
+
+#[macro_export]
+macro_rules! extract {
+    ($val:expr) => {
+        if let Some(x) = $val? {
+            x
+        } else {
+            return Ok(None);
+        };
+    };
 }

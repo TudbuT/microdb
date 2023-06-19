@@ -2,10 +2,28 @@ use std::io;
 
 use crate::MicroDB;
 
+#[derive(Clone)]
+pub struct Escape<P: Path>(pub P);
+
+impl<T: Path> Path for Escape<T> {
+    fn to_db_path(self) -> String {
+        self.0.to_db_path().replace('\\', "\\b").replace('/', "\\s")
+    }
+}
+
+#[derive(Clone)]
+pub struct Unescape<P: Path>(pub P);
+
+impl<T: Path> Path for Unescape<T> {
+    fn to_db_path(self) -> String {
+        self.0.to_db_path().replace("\\s", "/").replace("\\b", "\\")
+    }
+}
+
 pub trait Path: Sized + Clone {
     fn to_db_path(self) -> String;
     fn sub_path<P: Path>(&self, other: P) -> String {
-        self.clone().to_db_path() + &other.to_db_path()
+        self.clone().to_db_path() + "/" + &other.to_db_path()
     }
 }
 
