@@ -296,8 +296,7 @@ impl FAlloc {
             loop {
                 if inner_clone.is_poisoned() {
                     println!(
-                        "SEVERE: The database mutex was poisoned. Data may be corrupt. {}", 
-                        "Clearing poison and attempting to write to disk one last time before shutting down."
+                        "SEVERE: The database mutex was poisoned. Data may be corrupt. Circumventing poison and attempting to write to disk one last time before shutting down."
                     );
                     println!(
                         "First, waiting 60 seconds for rest of program to crash if possible..."
@@ -330,6 +329,7 @@ impl FAlloc {
                         let inner_clone = inner_clone.clone();
                         thread::spawn(move || {
                             let thing = inner_clone.lock().unwrap();
+                            #[allow(clippy::eq_op)]
                             if 1 == 1 {
                                 panic!("Poisoning mutex intentionally.");
                             }
@@ -458,6 +458,27 @@ impl FAlloc {
                     locations: Vec::new(),
                 },
             );
+        }
+        Ok(())
+    }
+
+    pub fn delete_substructure(&self, path: &str) -> Result<(), io::Error> {
+        let mut this = self.inner.lock().unwrap();
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
+        let (cache, alloc): (
+            &mut HashMap<String, (u128, bool, Vec<u8>)>,
+            &mut AllocationTable,
+        ) = deborrow!(this: cache, alloc);
+        let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
+        for key in alloc
+            .map
+            .iter()
+            .filter(|x| x.0.starts_with(&(path.to_owned() + "/")))
+            .map(|x| x.0.to_owned())
+        {
+            cache.insert(key, (time, true, Vec::new()));
         }
         Ok(())
     }

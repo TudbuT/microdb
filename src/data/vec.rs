@@ -53,7 +53,7 @@ where
     fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), std::io::Error> {
         let Some(len): Option<u64> = db.get_raw(path.clone())? else { return Ok(()) };
         for i in 0..len {
-            db.remove_raw(path.sub_path(i as u64))?;
+            db.remove_raw(path.sub_path(i))?;
         }
         Ok(())
     }
@@ -62,7 +62,7 @@ where
         let Some(len): Option<u64> = db.get_raw(path.clone())? else { return Ok(None) };
         let mut v = Vec::new();
         for i in 0..len {
-            let Some(value) = db.get_com(path.sub_path(i as u64))? else { return Ok(None) };
+            let Some(value) = db.get_com(path.sub_path(i))? else { return Ok(None) };
             v.push(value);
         }
         Ok(Some(v))

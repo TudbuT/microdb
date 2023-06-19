@@ -5,7 +5,7 @@ use crate::MicroDB;
 pub trait Path: Sized + Clone {
     fn to_db_path(self) -> String;
     fn sub_path<P: Path>(&self, other: P) -> String {
-        self.clone().to_db_path().to_owned() + &other.to_db_path()
+        self.clone().to_db_path() + &other.to_db_path()
     }
 }
 
@@ -47,7 +47,7 @@ where
 #[macro_export]
 macro_rules! com_obj {
     {$t:ty} => {
-        impl AutoComObj for $t {}
+        impl $crate::data::traits::AutoComObj for $t {}
     };
 }
 

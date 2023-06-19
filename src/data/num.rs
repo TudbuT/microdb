@@ -1,6 +1,6 @@
 use crate::com_obj;
 
-use super::{AutoComObj, Path, RawObj};
+use super::{Path, RawObj};
 
 macro_rules! impl_obj_num {
     ($($e:expr => $($t:ty),+ ;)+) => { $( $(

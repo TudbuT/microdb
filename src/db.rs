@@ -82,23 +82,37 @@ impl MicroDB {
     /// Sets an item in the database at the path.
     /// Here, the item is saved in a single blob at the path.
     pub fn set_raw<P: Path, T: RawObj>(&self, path: P, object: T) -> Result<(), io::Error> {
-        self.storage.set(&path.to_db_path(), object.to_db())
+        let path = path.to_db_path();
+        self.storage.delete_substructure(&path)?; // raw objects mustn't have substructure
+        self.storage.set(&path, object.to_db())
     }
 
     /// Sets an item in the database at the path.
     /// Here, the item is a composite item, so multiple blobs on sub-paths
     /// may be created.
     pub fn set_com<P: Path, T: ComObj>(&self, path: P, object: T) -> Result<(), io::Error> {
-        object.to_db(path, self)
+        self.storage
+            .delete_substructure(&path.clone().to_db_path())?; // clean substructure
+        T::to_db(object, path, self)
+    }
+
+    /// Sets an item in the database at the path.
+    /// Here, the item is a composite item, so multiple blobs on sub-paths
+    /// may be created.
+    ///
+    /// # Safety
+    ///
+    /// This function will not clean up the old substructure. It may create database junk until
+    /// the next time that substructure is cleaned by some other function. Use this only if you
+    /// know that the types of the previous inhabitant and the new one are the same and that the
+    /// types aren't dynamic (like Vec<T> is).
+    pub fn set_com_hard<P: Path, T: ComObj>(&self, path: P, object: T) -> Result<(), io::Error> {
+        T::to_db(object, path, self)
     }
 
     /// Gets an item from the database.
     pub fn get_raw<P: Path, T: RawObj>(&self, path: P) -> Result<Option<T>, io::Error> {
-        Ok(self
-            .storage
-            .get(&path.to_db_path())?
-            .map(T::from_db)
-            .flatten())
+        Ok(self.storage.get(&path.to_db_path())?.and_then(T::from_db))
     }
 
     /// Gets a composite item from the database.
@@ -106,12 +120,19 @@ impl MicroDB {
         T::from_db(path, self)
     }
 
-    /// Removes a single-blob item from the database.
+    /// Removes any item from the database.
+    pub fn remove<P: Path>(&self, path: P) -> Result<(), io::Error> {
+        let path = path.to_db_path();
+        self.storage.delete_substructure(&path)?;
+        self.storage.set(&path, Vec::new())
+    }
+
+    /// Removes a single-blob item from the database gracefully.
     pub fn remove_raw<P: Path>(&self, path: P) -> Result<(), io::Error> {
         self.storage.set(&path.to_db_path(), Vec::new())
     }
 
-    /// Removes a composite item from the database.
+    /// Removes a composite item from the database gracefully.
     pub fn remove_com<P: Path, T: ComObj>(&self, path: P) -> Result<(), io::Error> {
         T::remove(path, self)
     }

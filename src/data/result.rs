@@ -67,14 +67,12 @@ where
                     // broken
                     Ok(None)
                 }
+            } else if let Some(data) = db.get_com(path.sub_path("/data"))? {
+                // found
+                Ok(Some(Err(data)))
             } else {
-                if let Some(data) = db.get_com(path.sub_path("/data"))? {
-                    // found
-                    Ok(Some(Err(data)))
-                } else {
-                    // broken
-                    Ok(None)
-                }
+                // broken
+                Ok(None)
             }
         } else {
             // broken
