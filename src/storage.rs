@@ -51,6 +51,11 @@ struct InnerFAlloc {
     shutdown: bool,
 }
 
+/// The storage used in a MicroDB. Effectively, this is a primitive file system.
+/// Tasks:
+/// - space allocation
+/// - caching
+/// - disk operations
 #[derive(Debug)]
 pub struct FAlloc {
     inner: Arc<Mutex<InnerFAlloc>>,
@@ -155,7 +160,9 @@ impl AllocationTable {
                 while i < (index + 1).min(self.free.len() - 1) {
                     if self.free[i].0 + self.free[i].1 == self.free[i + 1].0 {
                         self.free[i].1 += self.free.remove(i + 1).1;
-                        index -= 1;
+                        if index > 0 {
+                            index -= 1;
+                        }
                     }
                     i += 1;
                 }
@@ -314,7 +321,11 @@ impl FAlloc {
                         continue;
                     }
                 }
-                if let Err(e) = inner.flush_cache(true).and(inner.data.sync_all()) {
+                if let Err(e) = inner
+                    .flush_cache(true)
+                    .and(inner.alloc.save())
+                    .and(inner.data.sync_all())
+                {
                     inner.shutdown = true;
                     recovery = true;
                     println!("The database was unable to write to disk. Depending on where this error happened, your data might be mostly fine. Error: {e:?}. Recovery will be attempted every 30 seconds.");
@@ -349,6 +360,7 @@ impl FAlloc {
         Ok(Self { inner })
     }
 
+    /// Loads a database. Can NOT be used to create one.
     pub fn new<S: ToString>(data: S, alloc: S, cache_period: u128) -> Result<Self, io::Error> {
         Self::internal_new(
             File::options()
@@ -362,6 +374,7 @@ impl FAlloc {
         )
     }
 
+    /// Creates a database. Can NOT be used to load one.
     pub fn create<S: ToString>(
         data: S,
         alloc: S,
@@ -389,6 +402,9 @@ impl FAlloc {
         })
     }
 
+    /// Tries to find an item in cache, returning Ok(None) if it wasn't found in the cache.
+    /// This is the only function where a recently-deleted element will be an empty vector
+    /// instead of being a None.
     pub fn cache_lookup(&self, path: Option<&str>) -> Result<Option<Vec<u8>>, io::Error> {
         let mut this = self.inner.lock().unwrap();
         if this.shutdown {
@@ -462,6 +478,7 @@ impl FAlloc {
         Ok(())
     }
 
+    /// Deletes all data that is BELOW the path in the tree. The path itself is NOT deleted.
     pub fn delete_substructure(&self, path: &str) -> Result<(), io::Error> {
         let mut this = self.inner.lock().unwrap();
         if this.shutdown {
@@ -500,7 +517,7 @@ impl FAlloc {
     }
 
     /// Gracefully shuts down the allocator, saving in the process.
-    /// Please use [`shutdown`] instead if possible. This variant
+    /// Please use [`Self::shutdown`] instead if possible. This variant
     /// will force a shutdown across all threads without the guarantee that
     /// this is the only thread with access to it.
     pub fn shutdown_here(&self) -> Result<(), io::Error> {

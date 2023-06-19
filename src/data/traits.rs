@@ -2,6 +2,7 @@ use std::io;
 
 use crate::MicroDB;
 
+/// A path which escapes its inner path
 #[derive(Clone)]
 pub struct Escape<P: Path>(pub P);
 
@@ -11,6 +12,7 @@ impl<T: Path> Path for Escape<T> {
     }
 }
 
+/// A path which unescapes its inner path
 #[derive(Clone)]
 pub struct Unescape<P: Path>(pub P);
 
@@ -20,8 +22,11 @@ impl<T: Path> Path for Unescape<T> {
     }
 }
 
+/// Anything that can be used as a path in a MicroDB
 pub trait Path: Sized + Clone {
+    /// Turns the path into a string for storage in the [`crate::FAlloc`]
     fn to_db_path(self) -> String;
+    /// Returns a sub-path of this path. Separator is added automatically, but escaping is NOT done.
     fn sub_path<P: Path>(&self, other: P) -> String {
         self.clone().to_db_path() + "/" + &other.to_db_path()
     }
@@ -29,14 +34,23 @@ pub trait Path: Sized + Clone {
 
 /// An object which the DB can represent in bytes
 pub trait RawObj: Sized {
+    /// Turns the object into a byte-array for storage.
     fn to_db(self) -> Vec<u8>;
+    /// Turns a byte-array back into this object. None means failure to decode.
     fn from_db(x: Vec<u8>) -> Option<Self>;
 }
 
 /// A composite object, made of other ComObjects and RawObjects.
 pub trait ComObj: Sized {
+    /// Turns the object into multiple DB-objects, which can be ComObjects or RawObjects.
+    /// To write, use the set_raw and set_com methods on the db. Don't forget to always use
+    /// [`Path::sub_path`].
     fn to_db<P: Path>(self, path: P, db: &MicroDB) -> Result<(), io::Error>;
+    /// Removes the object and its sub-objects from the DB. Don't forget to always use
+    /// [`Path::sub_path`].
     fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), io::Error>;
+    /// Turns the DB object back into the original object. None means failure to decode.
+    /// Don't forget to always use [`Path::sub_path`].
     fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error>;
 }
 

@@ -42,10 +42,8 @@ fn main() {
     let db = MicroDB::create(
         "example_db.data.mdb",
         "example_db.meta.mdb",
-        // 0,
-        MicroDB::sensible_cache_period(10.0, 0.1, 0.1, 1.0),
-        // 1,
-        MicroDB::sensible_block_size(500.0, 2.0, 0.0, 1.0),
+        dbg!(MicroDB::sensible_cache_period(10.0, 0.01, 0.1, 1.0)),
+        dbg!(MicroDB::sensible_block_size(500.0, 10_000.0, 0.0, 1.0)),
     )
     .unwrap();
     println!("\nSetting test --raw--> vec![true; 500]");

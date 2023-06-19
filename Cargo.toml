@@ -2,6 +2,9 @@
 name = "microdb"
 version = "0.1.0"
 edition = "2021"
+description = "A very small in-program database with cache, disk storage, etc."
+license = "MIT"
+repository = "https://github.com/tudbut/microdb"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

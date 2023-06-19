@@ -9,12 +9,14 @@ pub struct MicroDB {
 }
 
 impl MicroDB {
+    /// Loads a database. Can NOT be used to create one.
     pub fn new<S: ToString>(data: S, alloc: S, cache_period: u128) -> Result<Self, io::Error> {
         Ok(Self {
             storage: FAlloc::new(data, alloc, cache_period)?,
         })
     }
 
+    /// Creates a database. Can NOT be used to load one.
     pub fn create<S: ToString>(
         data: S,
         alloc: S,
@@ -67,7 +69,7 @@ impl MicroDB {
     }
 
     /// Gracefully shuts down the DB, saving in the process.
-    /// Please use [`shutdown`] instead if possible. This variant
+    /// Please use [`Self::shutdown`] instead if possible. This variant
     /// will force a shutdown across all threads without the guarantee that
     /// this is the only thread with access to it.
     pub fn shutdown_here(&self) -> Result<(), io::Error> {
@@ -105,7 +107,7 @@ impl MicroDB {
     /// This function will not clean up the old substructure. It may create database junk until
     /// the next time that substructure is cleaned by some other function. Use this only if you
     /// know that the types of the previous inhabitant and the new one are the same and that the
-    /// types aren't dynamic (like Vec<T> is).
+    /// types aren't dynamic (like [`Vec<T>`] is).
     pub fn set_com_hard<T: ComObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {
         T::to_db(object, path, self)
     }
@@ -138,6 +140,18 @@ impl MicroDB {
     }
 }
 
+/// Convenience macro to extract a value from the database and return Ok(None) if not found.
+///
+/// Example usage:
+/// ```ignore
+/// fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, std::io::Error> {
+///     Ok(Some(Self {
+///         username: extract!(db.get_raw(path.sub_path("username"))),
+///         email_address: extract!(db.get_raw(path.sub_path("email"))),
+///         password_hash: extract!(db.get_raw(path.sub_path("pass"))),
+///     }))
+/// }
+/// ```
 #[macro_export]
 macro_rules! extract {
     ($val:expr) => {
