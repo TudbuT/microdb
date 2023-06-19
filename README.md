@@ -1,7 +1,10 @@
 # MicroDB
 
 A microsized database for use in programs with too much data for the RAM, but not necessarily for your
-next incredibly successful Discord clone (tho I suppose you could make that work too).
+next incredibly successful Discord clone (tho I suppose you could make that work too\*).
+
+\* So it turns out when I compared this against postgres in terms of speed, THIS WON BY MILES. And by miles,
+   I mean a factor of about 16 (0.067ms vs 0.0004ms).
 
 ## Completed features
 
