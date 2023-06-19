@@ -1,10 +1,15 @@
 # MicroDB
 
-A microsized database for use in programs with too much data for the RAM, but not necessarily for your
-next incredibly successful Discord clone (tho I suppose you could make that work too\*).
+A microsized database for use in programs with too much data for the RAM, ~~but not necessarily for your
+next incredibly successful Discord clone (tho I suppose you could make that work too)~~\* (correction below).
 
 \* So it turns out when I compared this against postgres in terms of speed, THIS WON BY MILES. And by miles,
-   I mean a factor of about 16 (0.067ms vs 0.0004ms).
+   I mean a factor of about 160\*2 (0.067ms vs 0.0004ms). So I suppose you can actually use this for your next
+   Discord clone.
+
+\*2 So it turns out when I compared this here, I actually gave postgres an advantage! If I just access the items
+    as booleans (a RawObj), I get a factor of 600! (0.067ms vs 0.0001ms).
+    I'm honestly not sure how to react to this, but alright, I like it.
 
 ## Completed features
 

@@ -76,6 +76,21 @@ fn main() {
         elapsed,
         elapsed as f64 / 10000.0
     );
+    println!("\nSetting test --raw--> true");
+    db.set_raw("test", true).unwrap();
+    let v: bool = db.get_raw("test").unwrap().unwrap();
+    assert_eq!(v, true);
+    let time = SystemTime::now();
+    println!("Reading test 10000 times.");
+    for _ in 0..10000 {
+        black_box::<bool>(db.get_raw("test").unwrap().unwrap());
+    }
+    let elapsed = time.elapsed().unwrap().as_millis();
+    println!(
+        "Done! Took {}ms: {}ms per read.",
+        elapsed,
+        elapsed as f64 / 10000.0
+    );
     println!("\nSetting test --com--> vec![true; 500]");
     db.set_com("test", vec![true; 500]).unwrap();
     let v: Vec<bool> = db.get_com("test").unwrap().unwrap();
