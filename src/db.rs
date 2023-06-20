@@ -42,22 +42,6 @@ impl MicroDB {
             / (requests_per_second * average_object_size_mb)) as u128
     }
 
-    /// Gives you a sensible block size for given data requirements.
-    /// Storage tightness will drastically affect your result.
-    pub fn sensible_block_size(
-        object_amount: f64,
-        average_object_size_bytes: f64,
-        object_size_fluctuation_bytes: f64,
-        storage_tightness: f64,
-    ) -> usize {
-        // more objects = storage has to be more compact (-> bigger blocks)
-        let tightness_coefficient =
-            ((object_amount / 10_000.0).min(1.2) * storage_tightness).max(0.1);
-        ((average_object_size_bytes / 1.2 + object_size_fluctuation_bytes) * tightness_coefficient)
-            .max(10.0)
-            .min(10000.0) as usize
-    }
-
     /// Expires the cache and flushes it.
     pub fn sync(&self) -> Result<(), io::Error> {
         self.storage.sync()
