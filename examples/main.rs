@@ -51,60 +51,60 @@ fn main() {
     let v: Vec<bool> = db.get_raw("test").unwrap().unwrap();
     assert_eq!(v, vec![true; 500]);
     let time = SystemTime::now();
-    println!("Reading test 10000 times.");
-    for _ in 0..10000 {
+    println!("Reading test 50000 times.");
+    for _ in 0..50000 {
         black_box::<Vec<bool>>(db.get_raw("test").unwrap().unwrap());
     }
     let elapsed = time.elapsed().unwrap().as_millis();
     println!(
         "Done! Took {}ms: {}ms per read.",
         elapsed,
-        elapsed as f64 / 10000.0
+        elapsed as f64 / 50000.0
     );
     println!("\nSetting test --raw--> vec![true; 5]");
     db.set_raw("test", vec![true; 5]).unwrap();
     let v: Vec<bool> = db.get_raw("test").unwrap().unwrap();
     assert_eq!(v, vec![true; 5]);
     let time = SystemTime::now();
-    println!("Reading test 10000 times.");
-    for _ in 0..10000 {
+    println!("Reading test 50000 times.");
+    for _ in 0..50000 {
         black_box::<Vec<bool>>(db.get_raw("test").unwrap().unwrap());
     }
     let elapsed = time.elapsed().unwrap().as_millis();
     println!(
         "Done! Took {}ms: {}ms per read.",
         elapsed,
-        elapsed as f64 / 10000.0
+        elapsed as f64 / 50000.0
     );
     println!("\nSetting test --raw--> true");
     db.set_raw("test", true).unwrap();
     let v: bool = db.get_raw("test").unwrap().unwrap();
     assert_eq!(v, true);
     let time = SystemTime::now();
-    println!("Reading test 10000 times.");
-    for _ in 0..10000 {
+    println!("Reading test 50000 times.");
+    for _ in 0..50000 {
         black_box::<bool>(db.get_raw("test").unwrap().unwrap());
     }
     let elapsed = time.elapsed().unwrap().as_millis();
     println!(
         "Done! Took {}ms: {}ms per read.",
         elapsed,
-        elapsed as f64 / 10000.0
+        elapsed as f64 / 50000.0
     );
     println!("\nSetting test --com--> vec![true; 500]");
     db.set_com("test", vec![true; 500]).unwrap();
     let v: Vec<bool> = db.get_com("test").unwrap().unwrap();
     assert_eq!(v, vec![true; 500]);
     let time = SystemTime::now();
-    println!("Reading test 10000 times.");
-    for _ in 0..10000 {
+    println!("Reading test 50000 times.");
+    for _ in 0..50000 {
         black_box::<Vec<bool>>(db.get_com("test").unwrap().unwrap());
     }
     let elapsed = time.elapsed().unwrap().as_millis();
     println!(
         "Done! Took {}ms: {}ms per read.",
         elapsed,
-        elapsed as f64 / 10000.0
+        elapsed as f64 / 50000.0
     );
     println!("\nSetting test --com--> vec![true; 5]");
     db.remove_com::<Vec<bool>, _>("test").unwrap();
@@ -112,17 +112,40 @@ fn main() {
     let v: Vec<bool> = db.get_com("test").unwrap().unwrap();
     assert_eq!(v, vec![true; 5]);
     let time = SystemTime::now();
-    println!("Reading test 10000 times.");
-    for _ in 0..10000 {
+    println!("Reading test 50000 times.");
+    for _ in 0..50000 {
         black_box::<Vec<bool>>(db.get_com("test").unwrap().unwrap());
     }
     let elapsed = time.elapsed().unwrap().as_millis();
     println!(
         "Done! Took {}ms: {}ms per read.",
         elapsed,
-        elapsed as f64 / 10000.0
+        elapsed as f64 / 50000.0
     );
     db.remove("test").unwrap();
+
+    println!("\nSetting horizontal_test/{{0..50000}} --raw--> true");
+    let wtime = SystemTime::now();
+    for i in 0..50000_u32 {
+        db.set_raw("horizontal_test".sub_path(i), true).unwrap()
+    }
+    let welapsed = wtime.elapsed().unwrap().as_millis();
+    println!("Reading back all values...");
+    let rtime = SystemTime::now();
+    for i in 0..50000_u32 {
+        assert_eq!(
+            black_box::<bool>(db.get_raw("horizontal_test".sub_path(i)).unwrap().unwrap()),
+            true
+        );
+    }
+    let relapsed = rtime.elapsed().unwrap().as_millis();
+    println!(
+        "Done! Write took {}ms: {}ms per write; Read took {}ms: {}ms per read.",
+        welapsed,
+        welapsed as f64 / 50000.0,
+        relapsed,
+        relapsed as f64 / 50000.0,
+    );
 
     println!("\n\n-- benchmarks done --\n\n");
 

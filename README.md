@@ -1,15 +1,6 @@
 # MicroDB
 
-A microsized database for use in programs with too much data for the RAM, ~~but not necessarily for your
-next incredibly successful Discord clone (tho I suppose you could make that work too)~~ <sup>\*</sup> (correction below).
-
-\* So it turns out when I compared this against postgres in terms of speed, THIS WON BY MILES. And by miles,
-   I mean a factor of about 160<sup>\*2</sup> (0.067ms vs 0.0004ms). So I suppose you can actually use this for your next
-   Discord clone.
-
-\*2 So it turns out when I compared this here, I actually gave postgres an advantage! If I just access the items
-    as booleans (a RawObj), I get a factor of 600! (0.067ms vs 0.0001ms).
-    I'm honestly not sure how to react to this, but alright, I like it.
+A microsized database for use in programs with too much data for the RAM.
 
 ## Completed features
 
@@ -48,3 +39,23 @@ let db = MicroDB::create(
 Or load one using ::new and leave out the block_size arg.
 
 And now you're good to go!
+
+# Is it any fast?
+
+Here's a test showing the speed with amount of requests to one value:
+```
+Setting test --raw--> true
+Reading test 10000 times.
+Done! Took 1ms: 0.0001ms per read.
+```
+
+Here's a test showing the speed with one request per value at 10000 values:
+```
+Setting horizontal_test/{0..10000} --raw--> true
+Reading back all values...
+Done! Write took 5570ms: 0.557ms per write; Read took 143ms: 0.0143ms per read.
+```
+
+As you can see, the speed is quite negigible, and it actually happens to be a lot faster
+than SQL databases like Postgres **for these kinds of dataset sizes**. This DB is not made to
+be used on datasets of giant sizes, but it works exceptionally well for smaller datasets.
