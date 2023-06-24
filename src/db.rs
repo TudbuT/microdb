@@ -99,6 +99,20 @@ impl MicroDB {
     }
 
     /// Sets an item in the database at the path.
+    /// Here, the item is saved in a single blob at the path.
+    ///
+    /// # Safety
+    ///
+    /// This function will not clean up the substructure if there was a composite item here.
+    /// It may create database junk until the next time that substructure is cleaned by some
+    /// other function. Use this only if you know that the types of the previous inhabitant
+    /// and the new one are the same and that the types aren't dynamic (like [`Vec<T>`] is),
+    /// or if you WANT to keep sub-structure (if you're implementing a serializer for example).
+    pub fn set_raw_hard<T: RawObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {
+        self.storage.set(&path.to_db_path(), object.to_db())
+    }
+
+    /// Sets an item in the database at the path.
     /// Here, the item is a composite item, so multiple blobs on sub-paths
     /// may be created.
     pub fn set_com<T: ComObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {

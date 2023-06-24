@@ -42,23 +42,23 @@ macro_rules! impl_tuple {
                 let ($(ident!(v $tvarn),)*) = self;
                 let mut i = 0_u64;
                 $(
-                    ComObj::to_db(ident!(v $tvarn), path.sub_path(i), db)?;
+                    db.set_com(path.sub_path(i), ident!(v $tvarn))?;
                     i += 1;
                 )*
-                db.set_raw(path, i)
+                db.set_raw_hard(path, i)
             }
 
             fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), io::Error> {
                 <Vec<()> as ComObj>::remove::<P>(path, db) // tuples have identical layout to vecs
             }
 
-            #[allow(unused_assignments, unused_variables, unused_mut)]
+            #[allow(unused_variables, unused_mut)]
             fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error> {
                 let mut i = 0_u64;
                 let tup = (
                     $(
                         {
-                            let value = extract!(<$tvarn as ComObj>::from_db(path.sub_path(i), db));
+                            let value = extract!(db.get_com::<$tvarn, _>(path.sub_path(i)));
                             i += 1;
                             value
                         },
@@ -165,5 +165,43 @@ mod tests {
         db.shutdown().unwrap();
         fs::remove_file("tuples.test10.dmdb").unwrap();
         fs::remove_file("tuples.test10.mmdb").unwrap();
+    }
+    #[test]
+    fn test_10_com() {
+        let db = MicroDB::create("tuples.test10c.dmdb", "tuples.test10c.mmdb", 100, 100).unwrap();
+        db.set_com(
+            "10tuple",
+            (
+                1u8,
+                "hii".to_owned(),
+                3u8,
+                4u32,
+                5u128,
+                "6".to_owned(),
+                "7".to_owned(),
+                8u8,
+                9i32,
+                10i128,
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            db.get_com("10tuple").unwrap(),
+            Some((
+                1u8,
+                "hii".to_owned(),
+                3u8,
+                4u32,
+                5u128,
+                "6".to_owned(),
+                "7".to_owned(),
+                8u8,
+                9i32,
+                10i128
+            ))
+        );
+        db.shutdown().unwrap();
+        fs::remove_file("tuples.test10c.dmdb").unwrap();
+        fs::remove_file("tuples.test10c.mmdb").unwrap();
     }
 }
