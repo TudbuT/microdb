@@ -65,6 +65,8 @@ impl MicroDB {
         self.storage.shutdown()
     }
 
+    /// Returns the direct sub-paths of a path, or the direct root paths.
+    /// Does NOT return sub-paths of sub-paths.
     pub fn get_paths<P: Path>(&self, path: Option<P>) -> Result<Vec<String>, io::Error> {
         if let Some(path) = path {
             self.storage.paths(Some(&path.to_db_path()))
@@ -73,6 +75,7 @@ impl MicroDB {
         }
     }
 
+    /// Returns all sub-paths of a path, including indirect ones.
     pub fn get_all_paths<P: Path>(&self, path: Option<P>) -> Result<Vec<String>, io::Error> {
         if let Some(path) = path {
             self.storage.all_paths(Some(&path.to_db_path()))
@@ -81,6 +84,8 @@ impl MicroDB {
         }
     }
 
+    /// Primitively parses the object just enough to know the paths it occupies directly.
+    /// Does NOT return sub-paths of sub-paths.
     pub fn get_paths_of<T: ComObj, P: Path>(&self, path: P) -> Result<Vec<String>, io::Error> {
         T::paths(path, self)
     }

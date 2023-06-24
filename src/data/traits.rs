@@ -53,7 +53,8 @@ pub trait ComObj: Sized {
     /// Don't forget to always use [`Path::sub_path`].
     fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error>;
     /// Returns list of paths in the object. If not implemented manually, uses catch-all
-    /// function [`MicroDB::get_paths`].
+    /// function [`MicroDB::get_paths`]. MUST NOT return indirect sub-paths (sub-paths of
+    /// sub-paths)
     fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, io::Error> {
         db.get_paths(Some(path))
     }

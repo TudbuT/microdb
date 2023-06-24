@@ -476,6 +476,8 @@ impl FAlloc {
         Ok(())
     }
 
+    /// Returns the direct sub-paths of a path, or the direct root paths.
+    /// Does NOT return sub-paths of sub-paths.
     pub fn paths(&self, path: Option<&str>) -> Result<Vec<String>, io::Error> {
         let mut this = self.inner.lock().unwrap();
         if this.shutdown {
@@ -503,6 +505,7 @@ impl FAlloc {
         }
     }
 
+    /// Returns all sub-paths of a path, including indirect ones.
     pub fn all_paths(&self, path: Option<&str>) -> Result<Vec<String>, io::Error> {
         let mut this = self.inner.lock().unwrap();
         if this.shutdown {
