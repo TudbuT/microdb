@@ -71,6 +71,6 @@ where
 
     fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, std::io::Error> {
         let Some(len): Option<u64> = db.get_raw(path.clone())? else { return Ok(vec![]) };
-        Ok((0..len as u64).map(|x| path.sub_path(x)).collect())
+        Ok((0..len).map(|x| path.sub_path(x)).collect())
     }
 }

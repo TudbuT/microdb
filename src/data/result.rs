@@ -82,7 +82,7 @@ where
         }
     }
 
-    fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, io::Error> {
+    fn paths<P: Path>(path: P, _db: &MicroDB) -> Result<Vec<String>, io::Error> {
         Ok(vec![path.sub_path("type"), path.sub_path("data")])
     }
 }
