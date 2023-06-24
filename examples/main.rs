@@ -43,7 +43,7 @@ fn main() {
         "example_db.data.mdb",
         "example_db.meta.mdb",
         dbg!(MicroDB::sensible_cache_period(10.0, 0.01, 0.1, 1.0)),
-        200,
+        1,
     )
     .unwrap();
     println!("\nSetting test --raw--> vec![true; 500]");
@@ -124,15 +124,15 @@ fn main() {
     );
     db.remove("test").unwrap();
 
-    println!("\nSetting horizontal_test/{{0..50000}} --raw--> true");
+    println!("\nSetting horizontal_test/{{0..10000}} --raw--> true");
     let wtime = SystemTime::now();
-    for i in 0..50000_u32 {
+    for i in 0..10000_u32 {
         db.set_raw("horizontal_test".sub_path(i), true).unwrap()
     }
     let welapsed = wtime.elapsed().unwrap().as_millis();
     println!("Reading back all values...");
     let rtime = SystemTime::now();
-    for i in 0..50000_u32 {
+    for i in 0..10000_u32 {
         assert_eq!(
             black_box::<bool>(db.get_raw("horizontal_test".sub_path(i)).unwrap().unwrap()),
             true
@@ -142,15 +142,15 @@ fn main() {
     println!(
         "Done! Write took {}ms: {}ms per write; Read took {}ms: {}ms per read.",
         welapsed,
-        welapsed as f64 / 50000.0,
+        welapsed as f64 / 10000.0,
         relapsed,
-        relapsed as f64 / 50000.0,
+        relapsed as f64 / 10000.0,
     );
 
     println!("\n\n-- benchmarks done --\n\n");
 
     // there is a slash and stuff in this username!
-    let username = "TudbuT \\/\\ Daniella".to_owned();
+    let username = "TudbuT \\/\\ Daniel".to_owned();
     println!(
         "Escaped username: {}",
         Escape(username.clone()).to_db_path()

@@ -65,6 +65,26 @@ impl MicroDB {
         self.storage.shutdown()
     }
 
+    pub fn get_paths<P: Path>(&self, path: Option<P>) -> Result<Vec<String>, io::Error> {
+        if let Some(path) = path {
+            self.storage.paths(Some(&path.to_db_path()))
+        } else {
+            self.storage.paths(None)
+        }
+    }
+
+    pub fn get_all_paths<P: Path>(&self, path: Option<P>) -> Result<Vec<String>, io::Error> {
+        if let Some(path) = path {
+            self.storage.all_paths(Some(&path.to_db_path()))
+        } else {
+            self.storage.all_paths(None)
+        }
+    }
+
+    pub fn get_paths_of<T: ComObj, P: Path>(&self, path: P) -> Result<Vec<String>, io::Error> {
+        T::paths(path, self)
+    }
+
     /// Sets an item in the database at the path.
     /// Here, the item is saved in a single blob at the path.
     pub fn set_raw<T: RawObj, P: Path>(&self, path: P, object: T) -> Result<(), io::Error> {

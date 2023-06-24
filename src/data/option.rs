@@ -50,7 +50,7 @@ where
 
     fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), std::io::Error> {
         db.remove_raw(path.sub_path("type"))?;
-        db.remove_raw(path.sub_path("data"))?;
+        db.remove(path.sub_path("data"))?;
         Ok(())
     }
 
@@ -71,6 +71,14 @@ where
         } else {
             // broken
             Ok(None)
+        }
+    }
+
+    fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, std::io::Error> {
+        if matches!(db.get_raw(path.sub_path("type"))?, Some(x) if x) {
+            Ok(vec![path.sub_path("type"), path.sub_path("data")])
+        } else {
+            Ok(vec![path.sub_path("type")])
         }
     }
 }

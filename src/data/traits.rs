@@ -52,6 +52,11 @@ pub trait ComObj: Sized {
     /// Turns the DB object back into the original object. None means failure to decode.
     /// Don't forget to always use [`Path::sub_path`].
     fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error>;
+    /// Returns list of paths in the object. If not implemented manually, uses catch-all
+    /// function [`MicroDB::get_paths`].
+    fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, io::Error> {
+        db.get_paths(Some(path))
+    }
 }
 
 /// When implemented, automatically implements ComObj for the RawObj.
@@ -72,6 +77,10 @@ where
 
     fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error> {
         db.get_raw(path)
+    }
+
+    fn paths<P: Path>(_path: P, _db: &MicroDB) -> Result<Vec<String>, io::Error> {
+        Ok(Vec::new())
     }
 }
 

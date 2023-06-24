@@ -1,3 +1,5 @@
+use std::io;
+
 use crate::MicroDB;
 
 use super::{ComObj, Path, RawObj};
@@ -43,7 +45,7 @@ where
     T: ComObj,
     E: ComObj,
 {
-    fn to_db<P: Path>(self, path: P, db: &MicroDB) -> Result<(), std::io::Error> {
+    fn to_db<P: Path>(self, path: P, db: &MicroDB) -> Result<(), io::Error> {
         db.set_raw(path.sub_path("type"), self.is_ok())?;
         match self {
             Ok(x) => db.set_com(path.sub_path("data"), x),
@@ -51,13 +53,13 @@ where
         }
     }
 
-    fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), std::io::Error> {
+    fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), io::Error> {
         db.remove_raw(path.sub_path("type"))?;
-        db.remove_raw(path.sub_path("data"))?;
+        db.remove(path.sub_path("data"))?;
         Ok(())
     }
 
-    fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, std::io::Error> {
+    fn from_db<P: Path>(path: P, db: &MicroDB) -> Result<Option<Self>, io::Error> {
         if let Some(x) = db.get_raw(path.sub_path("type"))? {
             if x {
                 if let Some(data) = db.get_com(path.sub_path("data"))? {
@@ -78,5 +80,9 @@ where
             // broken
             Ok(None)
         }
+    }
+
+    fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, io::Error> {
+        Ok(vec![path.sub_path("type"), path.sub_path("data")])
     }
 }

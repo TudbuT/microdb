@@ -96,7 +96,7 @@ impl AllocationTable {
         for _ in 0..free_len {
             free.push((deserialize_u64!(f, buf64), deserialize_u64!(f, buf64)));
         }
-        let mut map = HashMap::with_capacity(256);
+        let mut map = HashMap::with_capacity(1024);
         for _ in 0..map_len {
             let str_len = deserialize_u64!(f, buf64);
             let mut buf = vec![0_u8; str_len];
@@ -160,9 +160,7 @@ impl AllocationTable {
                 while i < (index + 1).min(self.free.len() - 1) {
                     if self.free[i].0 + self.free[i].1 == self.free[i + 1].0 {
                         self.free[i].1 += self.free.remove(i + 1).1;
-                        if index > 0 {
-                            index -= 1;
-                        }
+                        index = index.saturating_sub(1);
                     }
                     i += 1;
                 }
@@ -292,7 +290,7 @@ impl FAlloc {
             cache_period,
             data,
             alloc,
-            cache: HashMap::with_capacity(256),
+            cache: HashMap::with_capacity(1024),
             last_cache_check: 0,
             shutdown: false,
         }));
@@ -392,7 +390,7 @@ impl FAlloc {
                 block_size,
                 blocks_reserved: 0,
                 free: Vec::new(),
-                map: HashMap::with_capacity(256),
+                map: HashMap::with_capacity(1024),
             },
             cache_period,
         )
@@ -478,6 +476,51 @@ impl FAlloc {
         Ok(())
     }
 
+    pub fn paths(&self, path: Option<&str>) -> Result<Vec<String>, io::Error> {
+        let mut this = self.inner.lock().unwrap();
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
+        let (alloc,) = deborrow!(this: alloc);
+        if let Some(path) = path {
+            let path_slashes = path.chars().filter(|x| x == &'/').count();
+            Ok(alloc
+                .map
+                .keys()
+                .filter(|x| {
+                    x.starts_with(&(path.to_owned() + "/"))
+                        && x.chars().filter(|x| x == &'/').count() == path_slashes + 1
+                })
+                .map(|x| x.to_owned())
+                .collect())
+        } else {
+            Ok(alloc
+                .map
+                .keys()
+                .filter(|x| !x.contains('/'))
+                .map(|x| x.to_owned())
+                .collect())
+        }
+    }
+
+    pub fn all_paths(&self, path: Option<&str>) -> Result<Vec<String>, io::Error> {
+        let mut this = self.inner.lock().unwrap();
+        if this.shutdown {
+            return Err(io::Error::new(ErrorKind::BrokenPipe, "The database has shut down. Writes are prohibited. If you didn't do this, some kind of error was encountered that forced the DB to shut down. Recovery will be attempted at regular intervals."));
+        }
+        let (alloc,) = deborrow!(this: alloc);
+        if let Some(path) = path {
+            Ok(alloc
+                .map
+                .keys()
+                .filter(|x| x.starts_with(&(path.to_owned() + "/")))
+                .map(|x| x.to_owned())
+                .collect())
+        } else {
+            Ok(alloc.map.keys().map(|x| x.to_owned()).collect())
+        }
+    }
+
     /// Deletes all data that is BELOW the path in the tree. The path itself is NOT deleted.
     pub fn delete_substructure(&self, path: &str) -> Result<(), io::Error> {
         let mut this = self.inner.lock().unwrap();
@@ -488,9 +531,9 @@ impl FAlloc {
         let time = SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis();
         for key in alloc
             .map
-            .iter()
-            .filter(|x| x.0.starts_with(&(path.to_owned() + "/")))
-            .map(|x| x.0.to_owned())
+            .keys()
+            .filter(|x| x.starts_with(&(path.to_owned() + "/")))
+            .map(|x| x.to_owned())
         {
             cache.insert(key, (time, true, Vec::new()));
         }

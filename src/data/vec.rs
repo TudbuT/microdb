@@ -52,8 +52,9 @@ where
 
     fn remove<P: Path>(path: P, db: &MicroDB) -> Result<(), std::io::Error> {
         let Some(len): Option<u64> = db.get_raw(path.clone())? else { return Ok(()) };
+        db.remove_raw(path.clone())?;
         for i in 0..len {
-            db.remove_raw(path.sub_path(i))?;
+            db.remove(path.sub_path(i))?;
         }
         Ok(())
     }
@@ -66,5 +67,10 @@ where
             v.push(value);
         }
         Ok(Some(v))
+    }
+
+    fn paths<P: Path>(path: P, db: &MicroDB) -> Result<Vec<String>, std::io::Error> {
+        let Some(len): Option<u64> = db.get_raw(path.clone())? else { return Ok(vec![]) };
+        Ok((0..len as u64).map(|x| path.sub_path(x)).collect())
     }
 }
