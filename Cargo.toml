@@ -1,6 +1,6 @@
 [package]
 name = "microdb"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 description = "A very small in-program database with cache, disk storage, etc."
 license = "MIT"
@@ -10,3 +10,4 @@ repository = "https://github.com/tudbut/microdb"
 
 [dependencies]
 deborrow = "0.1"
+ident_concat = "0.3.0"

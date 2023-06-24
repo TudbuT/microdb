@@ -168,6 +168,6 @@ macro_rules! extract {
             x
         } else {
             return Ok(None);
-        };
+        }
     };
 }
