@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs::{self, File},
     hint::black_box,
     io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
@@ -38,7 +38,7 @@ struct AllocationTable {
     block_size: usize,
     blocks_reserved: usize,
     free: Vec<(usize, usize)>,
-    map: HashMap<String, Allocation>,
+    map: BTreeMap<String, Allocation>,
 }
 
 #[derive(Debug)]
@@ -46,7 +46,7 @@ struct InnerFAlloc {
     cache_period: u128,
     data: File,
     alloc: AllocationTable,
-    cache: HashMap<String, (u128, bool, Vec<u8>)>,
+    cache: BTreeMap<String, (u128, bool, Vec<u8>)>,
     last_cache_check: u128,
     shutdown: bool,
 }
@@ -96,7 +96,7 @@ impl AllocationTable {
         for _ in 0..free_len {
             free.push((deserialize_u64!(f, buf64), deserialize_u64!(f, buf64)));
         }
-        let mut map = HashMap::with_capacity(1024);
+        let mut map = BTreeMap::new();
         for _ in 0..map_len {
             let str_len = deserialize_u64!(f, buf64);
             let mut buf = vec![0_u8; str_len];
@@ -290,7 +290,7 @@ impl FAlloc {
             cache_period,
             data,
             alloc,
-            cache: HashMap::with_capacity(1024),
+            cache: BTreeMap::new(),
             last_cache_check: 0,
             shutdown: false,
         }));
@@ -390,7 +390,7 @@ impl FAlloc {
                 block_size,
                 blocks_reserved: 0,
                 free: Vec::new(),
-                map: HashMap::with_capacity(1024),
+                map: BTreeMap::new(),
             },
             cache_period,
         )

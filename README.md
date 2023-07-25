@@ -59,3 +59,6 @@ Done! Write took 5570ms: 0.557ms per write; Read took 143ms: 0.0143ms per read.
 As you can see, the speed is quite negigible, and it actually happens to be a lot faster
 than SQL databases like Postgres **for these kinds of dataset sizes**. This DB is not made to
 be used on datasets of giant sizes, but it works exceptionally well for smaller datasets.
+
+Currently, the DB scales approximately at O(log n) for reading, but is slower for writing
+(not sure how much though).

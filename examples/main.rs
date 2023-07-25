@@ -124,6 +124,50 @@ fn main() {
     );
     db.remove("test").unwrap();
 
+    println!("\nSetting horizontal_test/{{0..1000}} --raw--> true");
+    let wtime = SystemTime::now();
+    for i in 0..1000_u32 {
+        db.set_raw("horizontal_test".sub_path(i), true).unwrap()
+    }
+    let welapsed = wtime.elapsed().unwrap().as_millis();
+    println!("Reading back all values...");
+    let rtime = SystemTime::now();
+    for i in 0..1000_u32 {
+        assert_eq!(
+            black_box::<bool>(db.get_raw("horizontal_test".sub_path(i)).unwrap().unwrap()),
+            true
+        );
+    }
+    let relapsed = rtime.elapsed().unwrap().as_millis();
+    println!(
+        "Done! Write took {}ms: {}ms per write; Read took {}ms: {}ms per read.",
+        welapsed,
+        welapsed as f64 / 1000.0,
+        relapsed,
+        relapsed as f64 / 1000.0,
+    );
+    println!("\nSetting horizontal_test/{{0..2000}} --raw--> true");
+    let wtime = SystemTime::now();
+    for i in 0..2000_u32 {
+        db.set_raw("horizontal_test".sub_path(i), true).unwrap()
+    }
+    let welapsed = wtime.elapsed().unwrap().as_millis();
+    println!("Reading back all values...");
+    let rtime = SystemTime::now();
+    for i in 0..2000_u32 {
+        assert_eq!(
+            black_box::<bool>(db.get_raw("horizontal_test".sub_path(i)).unwrap().unwrap()),
+            true
+        );
+    }
+    let relapsed = rtime.elapsed().unwrap().as_millis();
+    println!(
+        "Done! Write took {}ms: {}ms per write; Read took {}ms: {}ms per read.",
+        welapsed,
+        welapsed as f64 / 2000.0,
+        relapsed,
+        relapsed as f64 / 2000.0,
+    );
     println!("\nSetting horizontal_test/{{0..10000}} --raw--> true");
     let wtime = SystemTime::now();
     for i in 0..10000_u32 {
@@ -145,6 +189,28 @@ fn main() {
         welapsed as f64 / 10000.0,
         relapsed,
         relapsed as f64 / 10000.0,
+    );
+    println!("\nSetting horizontal_test/{{0..20000}} --raw--> true");
+    let wtime = SystemTime::now();
+    for i in 0..20000_u32 {
+        db.set_raw("horizontal_test".sub_path(i), true).unwrap()
+    }
+    let welapsed = wtime.elapsed().unwrap().as_millis();
+    println!("Reading back all values...");
+    let rtime = SystemTime::now();
+    for i in 0..20000_u32 {
+        assert_eq!(
+            black_box::<bool>(db.get_raw("horizontal_test".sub_path(i)).unwrap().unwrap()),
+            true
+        );
+    }
+    let relapsed = rtime.elapsed().unwrap().as_millis();
+    println!(
+        "Done! Write took {}ms: {}ms per write; Read took {}ms: {}ms per read.",
+        welapsed,
+        welapsed as f64 / 20000.0,
+        relapsed,
+        relapsed as f64 / 20000.0,
     );
 
     println!("\n\n-- benchmarks done --\n\n");
